@@ -1,0 +1,16 @@
+# Swift / Xcode
+.build/
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+.swiftpm/
+
+# App bundle (собирается локально)
+WebDAVClient.app/
+
+# Iconset (генерируется из исходника)
+AppIcon.iconset/
+AppIcon.icns
+
+# macOS
+.DS_Store
