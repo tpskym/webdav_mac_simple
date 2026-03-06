@@ -9,10 +9,19 @@
 
 ## Сборка и запуск
 
-### Из терминала
+### Из терминала (рекомендуется)
+
+**При каждой сборке** запускайте скрипт — он собирает проект, копирует бинарник в бандл и подкладывает иконку (иначе в `WebDAVClient.app` может не быть папки Resources и иконки):
 
 ```bash
 cd webdav
+./scripts/build-and-bundle.sh
+open WebDAVClient.app
+```
+
+Только сборка без упаковки в .app:
+
+```bash
 swift build
 .build/debug/WebDAVClient
 ```
