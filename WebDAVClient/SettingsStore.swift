@@ -7,6 +7,8 @@ final class SettingsStore: ObservableObject {
     private let keyServer = "webdav.serverURL"
     private let keyLogin = "webdav.login"
     private let keySaveDirectory = "webdav.saveDirectory"
+    private let keyLastOpenPath = "webdav.lastOpenPath"
+    private let keyLastOpenPathServer = "webdav.lastOpenPathServerURL"
     private let keychainService = "com.webdav.client"
 
     @Published var serverURL: String {
@@ -31,6 +33,28 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    /// Последняя открытая папка на сервере (путь без ведущего слэша, например "docs/2024").
+    @Published var lastOpenPath: String? {
+        didSet {
+            if let v = lastOpenPath, !v.isEmpty {
+                defaults.set(v, forKey: keyLastOpenPath)
+            } else {
+                defaults.removeObject(forKey: keyLastOpenPath)
+            }
+        }
+    }
+
+    /// URL сервера, для которого сохранён lastOpenPath (для восстановления только при том же сервере).
+    @Published var lastOpenPathServerURL: String? {
+        didSet {
+            if let v = lastOpenPathServerURL {
+                defaults.set(v, forKey: keyLastOpenPathServer)
+            } else {
+                defaults.removeObject(forKey: keyLastOpenPathServer)
+            }
+        }
+    }
+
     init() {
         self.serverURL = defaults.string(forKey: keyServer) ?? "https://"
         self.login = defaults.string(forKey: keyLogin) ?? ""
@@ -40,6 +64,8 @@ final class SettingsStore: ObservableObject {
         } else {
             self.saveDirectory = nil
         }
+        self.lastOpenPath = defaults.string(forKey: keyLastOpenPath)
+        self.lastOpenPathServerURL = defaults.string(forKey: keyLastOpenPathServer)
     }
 
     private func savePasswordToKeychain(_ value: String) {

@@ -294,18 +294,40 @@ struct ContentView: View {
             errorMessage = "Укажите корректный HTTPS URL"
             return
         }
+        let serverTrimmed = settings.serverURL.trimmingCharacters(in: .whitespaces)
+        var pathToLoad = currentPath.isEmpty ? "/" : currentPath
+
+        // Восстановить последнюю открытую папку при первом открытии списка
+        if pathStack.isEmpty && currentPath.isEmpty,
+           let savedServer = settings.lastOpenPathServerURL,
+           let savedPath = settings.lastOpenPath,
+           savedServer == serverTrimmed,
+           !savedPath.isEmpty {
+            let path = savedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if !path.isEmpty {
+                let comps = path.split(separator: "/").map(String.init)
+                var stack: [String] = []
+                for c in comps {
+                    stack.append(stack.isEmpty ? c : stack.last! + "/" + c)
+                }
+                pathStack = stack
+                currentPath = stack.last ?? ""
+                pathToLoad = currentPath.isEmpty ? "/" : currentPath
+            }
+        }
+
         isLoading = true
         errorMessage = nil
         let creds = WebDAVCredentials(baseURL: base, login: settings.login, password: settings.password)
-        let path = currentPath.isEmpty ? "/" : currentPath
         let service = WebDAVService(credentials: creds)
         Task {
             do {
-                var list = try await service.list(path: path)
-                list = list.filter { $0.href != path && $0.href != path + "/" }
+                var list = try await service.list(path: pathToLoad)
+                list = list.filter { $0.href != pathToLoad && $0.href != pathToLoad + "/" }
                 await MainActor.run {
                     resources = list
                     isLoading = false
+                    saveLastOpenPath()
                 }
             } catch {
                 await MainActor.run {
@@ -316,10 +338,18 @@ struct ContentView: View {
         }
     }
 
+    private func saveLastOpenPath() {
+        let serverTrimmed = settings.serverURL.trimmingCharacters(in: .whitespaces)
+        guard !serverTrimmed.isEmpty else { return }
+        settings.lastOpenPathServerURL = serverTrimmed
+        settings.lastOpenPath = currentPath.isEmpty ? nil : currentPath
+    }
+
     private func goUp() {
         guard !pathStack.isEmpty else { return }
         pathStack.removeLast()
         currentPath = pathStack.last ?? ""
+        saveLastOpenPath()
         loadList()
     }
 
@@ -348,6 +378,7 @@ struct ContentView: View {
             currentPath = (res.href as NSString).lastPathComponent
         }
         if currentPath.isEmpty { currentPath = "/" }
+        saveLastOpenPath()
         loadList()
     }
 
