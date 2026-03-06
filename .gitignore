@@ -10,7 +10,6 @@ WebDAVClient.app/
 
 # Iconset (генерируется из исходника)
 AppIcon.iconset/
-AppIcon.icns
 
 # macOS
 .DS_Store
