@@ -362,20 +362,42 @@ struct ContentView: View {
 
     private func enterDirectory(_ res: WebDAVResource) {
         pathStack.append(currentPath)
+        var hrefPath = res.href
+        if let hrefURL = URL(string: hrefPath), hrefURL.scheme != nil {
+            hrefPath = hrefURL.path
+        }
+        hrefPath = hrefPath.removingPercentEncoding ?? hrefPath
+
+        let normalizedCurrentPath = currentPath == "/"
+            ? ""
+            : currentPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         if let base = URL(string: settings.serverURL.trimmingCharacters(in: .whitespaces)),
            !base.path.isEmpty {
             var basePath = base.path
             if !basePath.hasSuffix("/") { basePath += "/" }
-            var href = res.href
+            var href = hrefPath
             if !href.hasSuffix("/") { href += "/" }
             if href.hasPrefix(basePath) {
                 currentPath = String(href.dropFirst(basePath.count))
                     .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            } else if !href.hasPrefix("/") {
+                // Некоторые WebDAV-серверы возвращают относительный href для вложенных папок.
+                let relative = href.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                if normalizedCurrentPath.isEmpty {
+                    currentPath = relative
+                } else {
+                    currentPath = normalizedCurrentPath + "/" + relative
+                }
             } else {
                 currentPath = href.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             }
         } else {
-            currentPath = (res.href as NSString).lastPathComponent
+            let lastComponent = (hrefPath as NSString).lastPathComponent
+            if normalizedCurrentPath.isEmpty {
+                currentPath = lastComponent
+            } else {
+                currentPath = normalizedCurrentPath + "/" + lastComponent
+            }
         }
         if currentPath.isEmpty { currentPath = "/" }
         saveLastOpenPath()

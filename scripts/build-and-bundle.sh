@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
-# Сборка приложения и упаковка в WebDAVClient.app с иконкой.
-# При каждой сборке нужно запускать этот скрипт, иначе в бандле не будет
-# актуального бинарника и/или иконки (папка Resources может отсутствовать).
+# Сборка приложения и упаковка в WebDAVClient.app (GUI-бандл для macOS).
+# По умолчанию собирает release; для debug передайте --debug.
 
 set -e
 cd "$(dirname "$0")/.."
 
-echo "→ swift build"
-swift build
+CONFIG="release"
+if [[ "${1:-}" == "--debug" ]]; then
+  CONFIG="debug"
+fi
+
+if [[ "$CONFIG" == "release" ]]; then
+  echo "→ swift build -c release"
+  swift build -c release
+else
+  echo "→ swift build"
+  swift build
+fi
 
 APP="WebDAVClient.app"
-BINARY=".build/debug/WebDAVClient"
+BINARY=".build/$CONFIG/WebDAVClient"
 
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Resources"
@@ -32,4 +41,4 @@ else
   echo "⚠ AppIcon.icns не найден в корне проекта; иконка в бандле не обновлена."
 fi
 
-echo "✓ Готово. Запуск: open $APP"
+echo "✓ Готово ($CONFIG). Запуск GUI-приложения: open $APP"

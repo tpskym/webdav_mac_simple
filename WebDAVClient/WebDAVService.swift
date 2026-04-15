@@ -17,8 +17,11 @@ final class WebDAVService: NSObject {
     /// Запрашивает список ресурсов по указанному пути (относительно baseURL).
     func list(path: String = "/") async throws -> [WebDAVResource] {
         var url = credentials.baseURL
-        if !path.isEmpty && path != "/" {
-            url = url.appendingPathComponent(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+        let normalizedPath = normalizeRelativePath(path)
+        if !normalizedPath.isEmpty {
+            for component in normalizedPath.split(separator: "/").map(String.init) {
+                url = url.appendingPathComponent(component)
+            }
         }
         var request = URLRequest(url: url)
         request.httpMethod = "PROPFIND"
@@ -66,9 +69,11 @@ final class WebDAVService: NSObject {
     func upload(localFile: URL, remotePath: String) async throws {
         let data = try Data(contentsOf: localFile)
         var url = credentials.baseURL
-        let path = remotePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let path = normalizeRelativePath(remotePath)
         if !path.isEmpty {
-            url = url.appendingPathComponent(path)
+            for component in path.split(separator: "/").map(String.init) {
+                url = url.appendingPathComponent(component)
+            }
         } else {
             url = url.appendingPathComponent(localFile.lastPathComponent)
         }
@@ -86,16 +91,29 @@ final class WebDAVService: NSObject {
     }
 
     private func resolveURL(href: String) -> URL {
-        if href.hasPrefix("http://") || href.hasPrefix("https://") {
-            return URL(string: href)!
+        if let absolute = URL(string: href), absolute.scheme != nil {
+            return absolute
         }
         let base = credentials.baseURL
         if href.hasPrefix("/") {
             var comp = URLComponents(url: base, resolvingAgainstBaseURL: false)!
-            comp.path = href
+            comp.percentEncodedPath = href
             return comp.url!
         }
-        return base.appendingPathComponent(href)
+        if let relative = URL(string: href, relativeTo: base)?.absoluteURL {
+            return relative
+        }
+        return base.appendingPathComponent(normalizeRelativePath(href))
+    }
+
+    /// Нормализует относительный путь и устраняет двойное percent-encoding.
+    private func normalizeRelativePath(_ value: String) -> String {
+        value
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .split(separator: "/")
+            .map(String.init)
+            .map { $0.removingPercentEncoding ?? $0 }
+            .joined(separator: "/")
     }
 
     // MARK: - PROPFIND XML parsing
